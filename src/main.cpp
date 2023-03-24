@@ -7,8 +7,8 @@
 #define RA8875_RESET 9
 
 Adafruit_RA8875 tft = Adafruit_RA8875(RA8875_CS, RA8875_RESET);
-uint16_t tx, ty;
 
+uint16_t tx, ty;
 int selectedOption = 0;
 int maxOption = 2;
 bool inSettings = false;
@@ -20,7 +20,6 @@ void setup() {
 
   /* Initialize the display */
   if (!tft.begin(RA8875_800x480)) {
-
     Serial.println("RA8875 Not Found!");
     while (1);
   }
