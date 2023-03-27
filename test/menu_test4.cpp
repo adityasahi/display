@@ -99,15 +99,14 @@ void loop() {
   } else {
     if (option == 1) {
       /* Load and draw bitmap from SD card */
-File bmpFile = SD.open("bitmap.bmp");
-if (!bmpFile) {
-  Serial.println("Failed to open bitmap file!");
-} else {
-  FatVolume vol = SD.volume();
-  Adafruit_ImageReader reader(vol);
-  reader.drawBMP(tft, bmpFile, 0, 0);
-  bmpFile.close();
-}
+      File bmpFile = SD.open("bitmap.bmp");
+      if (!bmpFile) {
+        Serial.println("Failed to open bitmap file!");
+      } else {
+        Adafruit_ImageReader reader(bmpFile);
+        reader.draw(tft, 0, 0);
+        bmpFile.close();
+      }
     } else if (option == 2) {
       Serial.println("Demo selected");
     } else if (option == 3) {
