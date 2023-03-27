@@ -1,6 +1,7 @@
 #include <SPI.h>
 #include "Adafruit_GFX.h"
 #include "Adafruit_RA8875.h"
+#include <SdFat.h>
 
 #define RA8875_INT 3
 #define RA8875_CS 10
@@ -8,6 +9,9 @@
 
 Adafruit_RA8875 tft = Adafruit_RA8875(RA8875_CS, RA8875_RESET);
 
+SdFat sd;
+
+uint16_t tx, ty;
 int selectedOption = 0;
 int maxOption = 3;
 bool inSettings = false;
@@ -20,6 +24,12 @@ void setup() {
   /* Initialize the display */
   if (!tft.begin(RA8875_800x480)) {
     Serial.println("RA8875 Not Found!");
+    while (1);
+  }
+
+  /* Initialize the SD card */
+  if (!sd.begin(4)) {
+    Serial.println("SD card initialization failed!");
     while (1);
   }
 
@@ -89,7 +99,8 @@ void loop() {
     }
   } else {
     if (option == 1) {
-      Serial.println("Game Select selected");
+      /* Load and draw bitmap from SD card */
+      // tft.bmpDraw("bitmap.bmp", 0, 0);
     } else if (option == 2) {
       Serial.println("Demo selected");
     } else if (option == 3) {
