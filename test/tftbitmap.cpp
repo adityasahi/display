@@ -4,6 +4,7 @@
 #include <SD.h>
 #include "Adafruit_RA8875.h"
 #include <Adafruit_STMPE610.h>
+#include "menu.h"
 #define sd_cs BUILTIN_SDCARD                         // uding ethernet shield sd
 
 // Library only supports hardware SPI at this time
@@ -121,6 +122,7 @@ MenuState currentMenu = MAIN_MENU;
 MenuState previousMenu = MAIN_MENU;
 
 void handleTouch(int x, int y) {
+ // option.is_touching(x,y) -> bool
   if (x >= OPTION_X && x <= OPTION_X + OPTION_WIDTH) {
     if (currentMenu == MAIN_MENU) {
       if (y >= OPTION_Y_START && y <= OPTION_Y_START + OPTION_HEIGHT) {
@@ -277,6 +279,9 @@ void bmpDraw(const char *filename, int x, int y) {
 
         // Set TFT address window to clipped image bounds
 
+        tft.setAddrWindow(x, y, x+w-1, y+h-1);
+
+
         for (row=0; row<h; row++) { // For each scanline...
           // Seek to start of scan line.  It might seem labor-
           // intensive to be doing this on every line, but this
@@ -331,6 +336,8 @@ void bmpDraw(const char *filename, int x, int y) {
 
   bmpFile.close();
   if(!goodBmp) Serial.println(F("BMP format not recognized."));
+
+  bmpDraw("pong.bmp", 50, 50);
 
 }
 
