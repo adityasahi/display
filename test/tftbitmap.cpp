@@ -175,7 +175,7 @@ void drawGameSelectMenu() {
   tft.fillScreen(RA8875_BLACK);
   bmpDraw("background.bmp", 0, 0);
   drawOption("Pong", OPTION_Y_START);
-  drawOption("Tetris", OPTION_Y_START + OPTION_HEIGHT + OPTION_SPACING);
+  drawOption("Astroids", OPTION_Y_START + OPTION_HEIGHT + OPTION_SPACING);
   drawOption("Flappy Bird", OPTION_Y_START + (OPTION_HEIGHT + OPTION_SPACING) * 2);
   drawBackButton();
 }
@@ -338,6 +338,15 @@ void bmpDraw(const char *filename, int x, int y) {
   if(!goodBmp) Serial.println(F("BMP format not recognized."));
 
   bmpDraw("pong.bmp", 50, 50);
+  
+  else{
+    if(!goodBmp) Serial.println(F("BMP format not recognized."));
+    bmpDraw("astroids.bmp", 50, 50);
+  }
+  else{
+    if(!goodBmp) Serial.println(F("BMP format not recognized."));
+    bmpDraw("flappybird.bmp", 50, 50);
+  }
 
 }
 
