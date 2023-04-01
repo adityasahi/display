@@ -4,7 +4,10 @@
 #include <SD.h>
 #include "Adafruit_RA8875.h"
 #include <Adafruit_STMPE610.h>
-#define sd_cs BUILTIN_SDCARD                          // using ethernet shield sd
+#include "menu.h"
+#include <SdFat.h>
+#include <TouchScreen.h>
+#define sd_cs BUILTIN_SDCARD
 
 // Library only supports hardware SPI at this time
 // Connect SCLK to UNO Digital #13 (Hardware SPI clock)
@@ -13,20 +16,41 @@
 #define RA8875_INT 33
 #define RA8875_CS 0
 #define RA8875_RESET 34
+   #define XP A1
+   #define YP A2
+   #define XM A3
+   #define YM A4
 
 Adafruit_RA8875 tft = Adafruit_RA8875(RA8875_CS, RA8875_RESET);
-
 
 void bmpDraw(const char *filename, int x, int y);
 uint16_t read16(File f);
 uint32_t read32(File f);
 uint16_t color565(uint8_t r, uint8_t g, uint8_t b);
 byte decToBcd(byte val);
+TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
+
+#define OPTION_WIDTH 200
+#define OPTION_HEIGHT 50
+#define OPTION_SPACING 20
+
+#define OPTION_X (tft.width() / 2 - OPTION_WIDTH / 2)
+#define OPTION_Y_START (tft.height() / 2 - (OPTION_HEIGHT * 3 + OPTION_SPACING * 2) / 2)
+
+void drawMenu();
+void handleTouch(int x, int y);
+void  drawOption(const char* text, int y);
+void drawBackButton();
+void drawGameSelectMenu();
+void drawSettingsMenu();
+void drawAudioMenu();
+
+
 
 void setup () {
   Serial.begin(9600);
 
-  if (!SD.begin(sd_cs))
+   if (!SD.begin(sd_cs))
   {
     Serial.println("initialization failed!");
     return;
@@ -36,7 +60,7 @@ void setup () {
 
   Serial.println("RA8875 start");
 
-  /* Initialize the display using 'RA8875_480x80', 'RA8875_480x128', 'RA8875_480x272' or 'RA8875_800x480' */
+  /* Initialize the display using 'RA8875_480x800', 'RA8875_480x128', 'RA8875_480x272' or 'RA8875_800x480' */
   if (!tft.begin(RA8875_800x480)) {
     Serial.println("RA8875 Not Found!");
     while (1);
@@ -54,14 +78,136 @@ void setup () {
   Serial.print(", ");
   Serial.print(tft.height());
   Serial.println(")");
+
   tft.graphicsMode();                 // go back to graphics mode
   tft.fillScreen(RA8875_BLACK);
   tft.graphicsMode();
   bmpDraw("background.bmp", 0, 0);
+  
+
 }
 
 void loop()
-{
+{ 
+   if (!ts.begin()) {
+    Serial.println("Couldn't start touchscreen controller");
+    while (1);
+  }
+  Serial.println("Touchscreen started");
+  drawMenu();
+
+ 
+}
+
+void drawMenu() {
+  tft.setTextSize(2);
+  tft.setTextColor(RA8875_WHITE);
+
+  drawOption("Game Select", OPTION_Y_START);
+  drawOption("Demo", OPTION_Y_START + OPTION_HEIGHT + OPTION_SPACING);
+  drawOption("Settings", OPTION_Y_START + (OPTION_HEIGHT + OPTION_SPACING) * 2);
+}
+
+void drawOption(const char* text, int y) {
+  tft.fillRect(OPTION_X, y, OPTION_WIDTH, OPTION_HEIGHT, RA8875_CYAN);
+  tft.drawRect(OPTION_X, y, OPTION_WIDTH, OPTION_HEIGHT, RA8875_BLACK);
+  int16_t x1, y1;
+  uint16_t w, h;
+  tft.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+  tft.setCursor(OPTION_X + (OPTION_WIDTH - w) / 2, y + (OPTION_HEIGHT - h) / 2);
+  tft.print(text);
+}
+
+// the drawBackButton() function here
+void drawBackButton() {
+  int backButtonX = 10;
+  int backButtonY = tft.height() - OPTION_HEIGHT - 10;
+  drawOption("Back", backButtonY);
+}
+
+enum MenuState {
+  MAIN_MENU,
+  GAME_SELECT_MENU,
+  SETTINGS_MENU,
+  AUDIO_MENU
+};
+
+MenuState currentMenu = MAIN_MENU;
+MenuState previousMenu = MAIN_MENU;
+
+void handleTouch(int x, int y) {
+ // option.is_touching(x,y) -> bool
+  if (x >= OPTION_X && x <= OPTION_X + OPTION_WIDTH) {
+    if (currentMenu == MAIN_MENU) {
+      if (y >= OPTION_Y_START && y <= OPTION_Y_START + OPTION_HEIGHT) {
+        Serial.println("Game Select pressed");
+        currentMenu = GAME_SELECT_MENU;
+        drawGameSelectMenu();
+      } else if (y >= OPTION_Y_START + OPTION_HEIGHT + OPTION_SPACING && y <= OPTION_Y_START + (OPTION_HEIGHT + OPTION_SPACING) * 2) {
+        Serial.println("Demo pressed");
+        // Add code to handle Demo option
+      } else if (y >= OPTION_Y_START + (OPTION_HEIGHT + OPTION_SPACING) * 2 && y <= OPTION_Y_START + (OPTION_HEIGHT + OPTION_SPACING) * 3) {
+        Serial.println("Settings pressed");
+        currentMenu = SETTINGS_MENU;
+        drawSettingsMenu();
+      }
+    } else if (currentMenu == GAME_SELECT_MENU) {
+      // Add touch handling for Pong, Tetris, and Flappy Bird options
+    } else if (currentMenu == SETTINGS_MENU) {
+      if (y >= OPTION_Y_START && y <= OPTION_Y_START + OPTION_HEIGHT) {
+        Serial.println("Brightness pressed");
+        // Add code to handle Brightness option
+      } else if (y >= OPTION_Y_START + OPTION_HEIGHT + OPTION_SPACING && y <= OPTION_Y_START + (OPTION_HEIGHT + OPTION_SPACING) * 2) {
+        Serial.println("Audio pressed");
+        currentMenu = AUDIO_MENU;
+        drawAudioMenu();
+      }
+    } else if (currentMenu == AUDIO_MENU) {
+      // Add touch handling for Internal and External audio options
+    }
+     // Check if the "Back" button was pressed
+  int backButtonX = 10;
+  int backButtonY = tft.height() - OPTION_HEIGHT - 10;
+  if (x >= backButtonX && x <= backButtonX + OPTION_WIDTH &&
+      y >= backButtonY && y <= backButtonY + OPTION_HEIGHT) {
+    Serial.println("Back pressed");
+    if (currentMenu != MAIN_MENU) {
+      currentMenu = previousMenu;
+      if (currentMenu == MAIN_MENU) {
+        drawMenu();
+      } else if (currentMenu == GAME_SELECT_MENU) {
+        drawGameSelectMenu();
+      } else if (currentMenu == SETTINGS_MENU) {
+        drawSettingsMenu();
+      }
+    }
+  }
+}
+}
+
+void drawGameSelectMenu() {
+  tft.fillScreen(RA8875_BLACK);
+  bmpDraw("background.bmp", 0, 0);
+  drawOption("Pong", OPTION_Y_START);
+  drawOption("Astroids", OPTION_Y_START + OPTION_HEIGHT + OPTION_SPACING);
+  drawOption("Flappy Bird", OPTION_Y_START + (OPTION_HEIGHT + OPTION_SPACING) * 2);
+  drawBackButton();
+}
+
+void drawSettingsMenu() {
+  tft.fillScreen(RA8875_BLACK);
+  bmpDraw("background.bmp", 0, 0);
+  drawOption("Brightness", OPTION_Y_START);
+  drawOption("Audio", OPTION_Y_START + OPTION_HEIGHT + OPTION_SPACING);
+  drawBackButton();
+  
+}
+
+void drawAudioMenu() {
+  tft.fillScreen(RA8875_BLACK);
+  bmpDraw("background.bmp", 0, 0);
+  drawOption("Internal", OPTION_Y_START);
+  drawOption("External", OPTION_Y_START + OPTION_HEIGHT + OPTION_SPACING);
 }
 
 // This function opens a Windows Bitmap (BMP) file and
@@ -85,7 +231,7 @@ void bmpDraw(const char *filename, int x, int y) {
   uint8_t  buffidx = sizeof(sdbuffer); // Current position in sdbuffer
   boolean  goodBmp = false;       // Set to true on valid header parse
   boolean  flip    = true;        // BMP is stored bottom-to-top
-  int      w, h, row, col, xpos, ypos;
+  int      w, h, row, col;
   uint8_t  r, g, b;
   uint32_t pos = 0, startTime = millis();
   uint8_t  lcdidx = 0;
@@ -146,7 +292,9 @@ void bmpDraw(const char *filename, int x, int y) {
         if((y+h-1) >= tft.height()) h = tft.height() - y;
 
         // Set TFT address window to clipped image bounds
-        ypos = y;
+
+      
+
         for (row=0; row<h; row++) { // For each scanline...
           // Seek to start of scan line.  It might seem labor-
           // intensive to be doing this on every line, but this
@@ -157,20 +305,18 @@ void bmpDraw(const char *filename, int x, int y) {
           if(flip) // Bitmap is stored bottom-to-top order (normal BMP)
             pos = bmpImageoffset + (bmpHeight - 1 - row) * rowSize;
           else     // Bitmap is stored top-to-bottom
-            pos = bmpImageoffset + row * rowSize;
-
-          if (bmpFile.position() != pos) { // Need seek?
+          pos = bmpImageoffset + row * rowSize;
+          if(bmpFile.position() != pos) { // Need seek?
             bmpFile.seek(pos);
             buffidx = sizeof(sdbuffer); // Force buffer reload
           }
-          xpos = x;
+
           for (col=0; col<w; col++) { // For each column...
             // Time to read more pixel data?
             if (buffidx >= sizeof(sdbuffer)) { // Indeed
               // Push LCD buffer to the display first
               if(lcdidx > 0) {
-                tft.drawPixels(lcdbuffer, lcdidx, xpos, ypos);
-                xpos += lcdidx;
+                tft.drawPixel(col+x, row+y, lcdbuffer[lcdidx]);
                 lcdidx = 0;
               }
 
@@ -182,20 +328,15 @@ void bmpDraw(const char *filename, int x, int y) {
             b = sdbuffer[buffidx++];
             g = sdbuffer[buffidx++];
             r = sdbuffer[buffidx++];
-            lcdbuffer[lcdidx++] = color565(r,g,b);
-            if (lcdidx >= sizeof(lcdbuffer) || (xpos - x + lcdidx) >= w) {
-              tft.drawPixels(lcdbuffer, lcdidx, xpos, ypos);
-              lcdidx = 0;
-              xpos += lcdidx;
-            }
+            lcdbuffer[lcdidx] = color565(r,g,b);
+            tft.drawPixel(col+x, row+y, lcdbuffer[lcdidx]);
           } // end pixel
-            ypos++;
+
         } // end scanline
 
         // Write any remaining data to LCD
         if(lcdidx > 0) {
-          tft.drawPixels(lcdbuffer, lcdidx, xpos, ypos);
-          xpos += lcdidx;
+          tft.drawPixel(col+x, row+y, lcdbuffer[lcdidx]);
         }
 
         Serial.print(F("Loaded in "));
@@ -209,6 +350,8 @@ void bmpDraw(const char *filename, int x, int y) {
   bmpFile.close();
   if(!goodBmp) Serial.println(F("BMP format not recognized."));
 
+  bmpDraw("pong.bmp", 50, 50);
+ 
 }
 
 // These read 16- and 32-bit types from the SD card file.

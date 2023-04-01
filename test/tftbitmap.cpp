@@ -5,7 +5,8 @@
 #include "Adafruit_RA8875.h"
 #include <Adafruit_STMPE610.h>
 #include "menu.h"
-#define sd_cs BUILTIN_SDCARD                         // uding ethernet shield sd
+#include <SdFat.h>
+#define sd_cs BUILTIN_SDCARD                        // uding ethernet shield sd
 
 // Library only supports hardware SPI at this time
 // Connect SCLK to UNO Digital #13 (Hardware SPI clock)
@@ -30,10 +31,20 @@ byte decToBcd(byte val);
 #define OPTION_X (tft.width() / 2 - OPTION_WIDTH / 2)
 #define OPTION_Y_START (tft.height() / 2 - (OPTION_HEIGHT * 3 + OPTION_SPACING * 2) / 2)
 
+void drawMenu();
+void handleTouch(int x, int y);
+void drawOption(const char* text, int y);
+void drawBackButton();
+void drawGameSelectMenu();
+void drawSettingsMenu();
+void drawAudioMenu();
+
+
+
 void setup () {
   Serial.begin(9600);
 
-  if (!SD.begin(sd_cs))
+   if (!SD.begin(sd_cs))
   {
     Serial.println("initialization failed!");
     return;
@@ -66,22 +77,19 @@ void setup () {
   tft.fillScreen(RA8875_BLACK);
   tft.graphicsMode();
   bmpDraw("background.bmp", 0, 0);
-
   
-  if (!ts.begin()) {
+
+}
+
+void loop()
+{ 
+   if (!ts.begin()) {
     Serial.println("Couldn't start touchscreen controller");
     while (1);
   }
   Serial.println("Touchscreen started");
   drawMenu();
-}
 
-void loop()
-{
-   if (ts.touched()) {
-    TS_Point p = ts.getPoint();
-    handleTouch(p.x, p.y);
-  }
  
 }
 
@@ -279,8 +287,7 @@ void bmpDraw(const char *filename, int x, int y) {
 
         // Set TFT address window to clipped image bounds
 
-        tft.setAddrWindow(x, y, x+w-1, y+h-1);
-
+      
 
         for (row=0; row<h; row++) { // For each scanline...
           // Seek to start of scan line.  It might seem labor-
@@ -338,16 +345,7 @@ void bmpDraw(const char *filename, int x, int y) {
   if(!goodBmp) Serial.println(F("BMP format not recognized."));
 
   bmpDraw("pong.bmp", 50, 50);
-  
-  else{
-    if(!goodBmp) Serial.println(F("BMP format not recognized."));
-    bmpDraw("astroids.bmp", 50, 50);
-  }
-  else{
-    if(!goodBmp) Serial.println(F("BMP format not recognized."));
-    bmpDraw("flappybird.bmp", 50, 50);
-  }
-
+ 
 }
 
 // These read 16- and 32-bit types from the SD card file.

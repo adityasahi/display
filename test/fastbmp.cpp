@@ -4,7 +4,7 @@
 #include <SD.h>
 #include "Adafruit_RA8875.h"
 #include <Adafruit_STMPE610.h>
-#define sd_cs BUILTIN_SDCARD                          // using ethernet shield sd
+#define sd_cs BUILTIN_SDCARD                       // using ethernet shield sd
 
 // Library only supports hardware SPI at this time
 // Connect SCLK to UNO Digital #13 (Hardware SPI clock)
@@ -13,15 +13,37 @@
 #define RA8875_INT 33
 #define RA8875_CS 0
 #define RA8875_RESET 34
+/*****************
+
+#define OPTION_WIDTH 200
+#define OPTION_HEIGHT 50
+#define OPTION_SPACING 20
+#define OPTION_X (tft.width() / 2 - OPTION_WIDTH / 2)
+#define OPTION_Y_START (tft.height() / 2 - (OPTION_HEIGHT * 3 + OPTION_SPACING * 2) / 2)
+*******************************/
 
 Adafruit_RA8875 tft = Adafruit_RA8875(RA8875_CS, RA8875_RESET);
-
 
 void bmpDraw(const char *filename, int x, int y);
 uint16_t read16(File f);
 uint32_t read32(File f);
 uint16_t color565(uint8_t r, uint8_t g, uint8_t b);
 byte decToBcd(byte val);
+
+
+
+
+/******************************************
+// Declarations of the variables for the menu
+void drawMenu();
+void handleTouch(int x, int y);
+void drawOption(const char* text, int y);
+void drawBackButton();
+void drawGameSelectMenu();
+void drawSettingsMenu();
+void drawAudioMenu();
+void drawDemoMenu();
+*********************************************/
 
 void setup () {
   Serial.begin(9600);
@@ -44,6 +66,12 @@ void setup () {
 
   Serial.println("Found RA8875");
 
+  if (!ts.begin()) {
+    Serial.println("Couldn't start touchscreen controller");
+    while (1);
+  }
+  Serial.println("Touchscreen started");
+
   tft.displayOn(true);
   tft.GPIOX(true);      // Enable TFT - display enable tied to GPIOX
   tft.PWM1config(true, RA8875_PWM_CLK_DIV1024); // PWM output for backlight
@@ -62,7 +90,154 @@ void setup () {
 
 void loop()
 {
+/**
+  drawMenu();
+  drawGameSelectMenu();
+  drawDemoMenu();
+  drawSettingsMenu();
+  drawAudioMenu();
+  drawBackButton();
+  drawOption();
+  handleTouch(int x, int y);
+  ***/
 }
+/**************************
+void drawMenu() {
+  tft.setTextSize(2);
+  tft.setTextColor(RA8875_WHITE);
+  bmpDraw("background.bmp", 0, 0);
+
+  drawOption("Game Select", OPTION_Y_START);
+  drawOption("Demo", OPTION_Y_START + OPTION_HEIGHT + OPTION_SPACING);
+  drawOption("Settings", OPTION_Y_START + (OPTION_HEIGHT + OPTION_SPACING) * 2);
+}
+
+void drawOption(const char* text, int y) {
+  tft.fillRect(OPTION_X, y, OPTION_WIDTH, OPTION_HEIGHT, RA8875_CYAN);
+  tft.drawRect(OPTION_X, y, OPTION_WIDTH, OPTION_HEIGHT, RA8875_BLACK);
+  int16_t x1, y1;
+  uint16_t w, h;
+  bmpDraw("background.bmp", 0, 0);
+  tft.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+  tft.setCursor(OPTION_X + (OPTION_WIDTH - w) / 2, y + (OPTION_HEIGHT - h) / 2);
+  tft.print(text);
+}
+// the drawBackButton() function here
+void drawBackButton() {
+  int backButtonX = 10;
+  int backButtonY = tft.height() - OPTION_HEIGHT - 10;
+  bmpDraw("background.bmp", 0, 0);
+  drawOption("Back", backButtonY);
+}
+
+enum MenuState {
+  MAIN_MENU,
+  GAME_SELECT_MENU,
+  DEMO_MENU,
+  SETTINGS_MENU,
+  AUDIO_MENU
+};
+
+MenuState currentMenu = MAIN_MENU;
+MenuState previousMenu = MAIN_MENU;
+void handleTouch(int x, int y) {
+ 
+  if (x >= OPTION_X && x <= OPTION_X + OPTION_WIDTH) {
+    if (currentMenu == MAIN_MENU) {
+      if (y >= OPTION_Y_START && y <= OPTION_Y_START + OPTION_HEIGHT) {
+        Serial.println("Game Select pressed");
+        currentMenu = GAME_SELECT_MENU;
+        drawGameSelectMenu();
+      } else if (y >= OPTION_Y_START + OPTION_HEIGHT + OPTION_SPACING && y <= OPTION_Y_START + (OPTION_HEIGHT + OPTION_SPACING) * 2) {
+        Serial.println("Demo pressed");
+        currentMenu = DEMO_MENU;
+        drawDemoMenu();
+      } else if (y >= OPTION_Y_START + (OPTION_HEIGHT + OPTION_SPACING) * 2 && y <= OPTION_Y_START + (OPTION_HEIGHT + OPTION_SPACING) * 3) {
+        Serial.println("Settings pressed");
+        currentMenu = SETTINGS_MENU;
+        drawSettingsMenu();
+      }
+    } else if (currentMenu == GAME_SELECT_MENU) {
+      // Add touch handling for Pong, Tetris, and Flappy Bird options
+    } else if (currentMenu == SETTINGS_MENU) {
+      if (y >= OPTION_Y_START && y <= OPTION_Y_START + OPTION_HEIGHT) {
+        Serial.println("Brightness pressed");
+        // Add code to handle Brightness option
+      } else if (y >= OPTION_Y_START + OPTION_HEIGHT + OPTION_SPACING && y <= OPTION_Y_START + (OPTION_HEIGHT + OPTION_SPACING) * 2) {
+        Serial.println("Audio pressed");
+        currentMenu = AUDIO_MENU;
+        drawAudioMenu();
+      }
+    } else if (currentMenu == AUDIO_MENU) {
+      // Add touch handling for Internal and External audio options
+    }
+     // Check if the "Back" button was pressed
+  int backButtonX = 10;
+  int backButtonY = tft.height() - OPTION_HEIGHT - 10;
+  if (x >= backButtonX && x <= backButtonX + OPTION_WIDTH &&
+      y >= backButtonY && y <= backButtonY + OPTION_HEIGHT) {
+    Serial.println("Back pressed");
+    if (currentMenu != MAIN_MENU) {
+      currentMenu = previousMenu;
+      if (currentMenu == MAIN_MENU) {
+        drawMenu();
+      } else if (currentMenu == GAME_SELECT_MENU) {
+        drawGameSelectMenu();
+      } else if (currentMenu == SETTINGS_MENU) {
+        drawSettingsMenu();
+      }
+    }
+  }
+}
+}
+
+void drawGameSelectMenu() {
+  tft.fillScreen(RA8875_BLACK);
+  bmpDraw("background.bmp", 0, 0);
+  drawOption("Pong", OPTION_Y_START);
+  drawOption("Astroids", OPTION_Y_START + OPTION_HEIGHT + OPTION_SPACING);
+  drawOption("Flappy Bird", OPTION_Y_START + (OPTION_HEIGHT + OPTION_SPACING) * 2);
+  drawBackButton();
+}
+
+void drawDemoMenu() {
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setCursor(10, 10);
+  tft.setTextColor(ILI9341_WHITE);
+  tft.setTextSize(2);
+  tft.print("Shape Menu");
+
+  int optionY = 50;
+  int optionHeight = 30;
+  int optionSpacing = 10;
+
+  tft.setTextSize(1);
+  tft.setCursor(10, optionY);
+  tft.print("1. Dot");
+
+  tft.setCursor(10, optionY + optionHeight + optionSpacing);
+  tft.print("2. Shape");
+
+  tft.setCursor(10, optionY + (optionHeight + optionSpacing) * 2);
+  tft.print("3. Line");
+}
+
+void drawSettingsMenu() {
+  tft.fillScreen(RA8875_BLACK);
+  bmpDraw("background.bmp", 0, 0);
+  drawOption("Brightness", OPTION_Y_START);
+  drawOption("Audio", OPTION_Y_START + OPTION_HEIGHT + OPTION_SPACING);
+  drawBackButton();
+  
+}
+
+void drawAudioMenu() {
+  tft.fillScreen(RA8875_BLACK);
+  bmpDraw("background.bmp", 0, 0);
+  drawOption("Internal", OPTION_Y_START);
+  drawOption("External", OPTION_Y_START + OPTION_HEIGHT + OPTION_SPACING);
+}
+*******************************************************/
 
 // This function opens a Windows Bitmap (BMP) file and
 // displays it at the given coordinates.  It's sped up
